@@ -1,4 +1,4 @@
-import { GRAVITY, LANDER_HEIGHT, CRASH_ANGLE } from "../helpers/constants.js";
+import { LANDER_HEIGHT, CRASH_ANGLE } from "../helpers/constants.js";
 
 export const drawTrajectory = (
   state,
@@ -10,6 +10,7 @@ export const drawTrajectory = (
   const CTX = state.get("CTX");
   const canvasWidth = state.get("canvasWidth");
   const canvasHeight = state.get("canvasHeight");
+  const gravity = state.get("world").gravity;
   const terrainLandingData = state.get("terrain").getLandingData();
   const scaleFactor = state.get("scaleFactor");
 
@@ -40,7 +41,7 @@ export const drawTrajectory = (
       );
       projectedXPosition += currentVelocity.x;
       projectedAngle += (Math.PI / 180) * currentRotationVelocity;
-      projectedYVelocity += GRAVITY;
+      projectedYVelocity += gravity;
     }
 
     return [

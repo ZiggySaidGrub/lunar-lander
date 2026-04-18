@@ -11,9 +11,9 @@ export const makeTerrain = (state) => {
   const canvasHeight = state.get("canvasHeight");
   const seededRandom = state.get("seededRandom");
 
-  const targetHeight = canvasHeight * 0.8;
-  const landingMaxHeight = targetHeight;
-  const landingMinHeight = canvasHeight - 40;
+  let terrainAvgHeight = canvasHeight * 0.8;
+  let landingMaxHeight = terrainAvgHeight;
+  let landingMinHeight = canvasHeight - 40;
   const numPoints = Math.max(Math.round(canvasWidth / 60), 20);
   let landingZoneSpans = [];
   let landingSurfaces = [];
@@ -82,6 +82,11 @@ export const makeTerrain = (state) => {
   };
 
   const reGenerate = () => {
+    const terrainConfig = state.get("world").terrain;
+    terrainAvgHeight = canvasHeight * terrainConfig.targetHeightRatio;
+    landingMaxHeight = terrainAvgHeight;
+    landingMinHeight = canvasHeight - terrainConfig.landingMinInset;
+
     generateLandingZoneSpans();
     landingSurfaces = [
       generateLandingSurface(4, "largeLandingSurface"),
@@ -90,9 +95,9 @@ export const makeTerrain = (state) => {
 
     terrainPathArray = generateTerrainY(
       numPoints,
-      targetHeight,
-      canvasHeight / 10,
-      0.75,
+      terrainAvgHeight,
+      canvasHeight * terrainConfig.displaceRatio,
+      terrainConfig.roughness,
       seededRandom
     ).map((y, index) => {
       // Get landing surface if we've reached its x position
@@ -107,8 +112,8 @@ export const makeTerrain = (state) => {
         y: landingSurface ? landingSurface.height : y,
       };
     });
-    terrainPathArray[0] = { x: 0, y: targetHeight };
-    terrainPathArray[numPoints] = { x: canvasWidth, y: targetHeight };
+    terrainPathArray[0] = { x: 0, y: terrainAvgHeight };
+    terrainPathArray[numPoints] = { x: canvasWidth, y: terrainAvgHeight };
 
     const terrainPath = new Path2D();
     terrainPath.moveTo(0, canvasHeight);
@@ -173,7 +178,7 @@ export const makeTerrain = (state) => {
         (min, { y }) => (y < min ? y : min),
         canvasHeight
       ),
-      terrainAvgHeight: targetHeight,
+      terrainAvgHeight,
       landingSurfaces: landingSurfacesInPixels,
     };
   };

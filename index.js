@@ -26,6 +26,12 @@ import { makeBonusPointsManager } from "./bonuspoints.js";
 import { makeTheme } from "./theme.js";
 import { TRANSITION_TO_SPACE } from "./helpers/constants.js";
 import {
+  DEFAULT_WORLD_NAME,
+  getStoredWorldName,
+  getWorldConfig,
+  storeWorldName,
+} from "./helpers/worlds.js";
+import {
   landingScoreDescription,
   crashScoreDescription,
   destroyedDescription,
@@ -42,6 +48,7 @@ const [CTX, canvasWidth, canvasHeight, canvasElement, scaleFactor] =
   });
 const challengeManager = makeChallengeManager();
 const seededRandom = makeSeededRandom();
+const initialWorldName = getStoredWorldName();
 
 const appState = makeStateManager()
   .set("CTX", CTX)
@@ -51,10 +58,11 @@ const appState = makeStateManager()
   .set("scaleFactor", scaleFactor)
   .set("audioManager", audioManager)
   .set("challengeManager", challengeManager)
-  .set("seededRandom", seededRandom);
+  .set("seededRandom", seededRandom)
+  .set("worldName", initialWorldName)
+  .set("world", getWorldConfig(initialWorldName));
 
-const theme = makeTheme(appState);
-appState.set("theme", theme);
+appState.set("theme", makeTheme(appState));
 
 const terrain = makeTerrain(appState);
 appState.set("terrain", terrain);
@@ -84,6 +92,10 @@ let randomConfetti = [];
 
 let gameEnded = false;
 
+const worldSelectElement = document.querySelector("#worldSelect");
+worldSelectElement.value = appState.get("worldName") || DEFAULT_WORLD_NAME;
+worldSelectElement.addEventListener("change", onWorldChange);
+
 // INSTRUCTIONS SHOW/HIDE
 
 if (!instructions.hasClosedInstructions()) {
@@ -98,7 +110,7 @@ if (!instructions.hasClosedInstructions()) {
 // MAIN ANIMATION LOOP
 
 const animationObject = animate((timeSinceStart, deltaTime) => {
-  CTX.fillStyle = theme.backgroundGradient;
+  CTX.fillStyle = appState.get("theme").backgroundGradient;
   CTX.fillRect(0, 0, canvasWidth, canvasHeight);
 
   // Move stars in parallax as lander flies high
@@ -216,8 +228,17 @@ function onGameEnd(data) {
 }
 
 function onResetGame() {
+  resetRoundState();
+}
+
+function resetRoundState() {
   gameEnded = false;
-  landerControls.attachEventListeners();
+
+  if (instructions.hasClosedInstructions()) {
+    landerControls.detachEventListeners();
+    landerControls.attachEventListeners();
+  }
+
   seededRandom.setDailyChallengeSeed();
   randomConfetti = [];
   terrain.reGenerate();
@@ -227,6 +248,21 @@ function onResetGame() {
   asteroids = [makeAsteroid(appState, lander.getPosition, onAsteroidImpact)];
   spaceAsteroids = [];
   bonusPointsManager.reset();
+}
+
+function onWorldChange(e) {
+  const selectedWorldName = e.target.value;
+  if (selectedWorldName === appState.get("worldName")) return;
+
+  appState.set("worldName", selectedWorldName);
+  appState.set("world", getWorldConfig(selectedWorldName));
+  appState.set("theme", makeTheme(appState));
+  storeWorldName(selectedWorldName);
+
+  // Start a clean run so all world-dependent visuals and entities match.
+  lander.resetProps();
+  animationObject.resetStartTime();
+  resetRoundState();
 }
 
 function onAsteroidImpact(asteroidVelocity) {
